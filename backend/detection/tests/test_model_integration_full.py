@@ -22,7 +22,7 @@ class FullModelIntegrationTests(TestCase):
         super().setUpClass()
         tests_dir = os.path.dirname(__file__)
         cls.backend_dir = os.path.abspath(os.path.join(tests_dir, "..", ".."))
-        cls.model_path = os.path.join(cls.backend_dir, "models", "alzheimers_detector.pth")
+        cls.model_path = os.path.join(cls.backend_dir, "models", "dementia_detector.pth")
 
         # prepare an in-memory sample image (224x224 RGB)
         img = Image.new("RGB", (224, 224), color=(128, 128, 128))
@@ -33,7 +33,7 @@ class FullModelIntegrationTests(TestCase):
         cls.sample_file = SimpleUploadedFile("sample.jpg", cls.sample_bytes, content_type="image/jpeg")
 
     def test_01_model_file_exists(self):
-        """Test-Int-001 — Model file exists at backend/models/alzheimers_detector.pth"""
+        """Test-Int-001 — Model file exists at backend/models/dementia_detector.pth"""
         self.assertTrue(os.path.exists(self.model_path), f"Model file not found at {self.model_path}")
 
     def test_02_torch_importable(self):

@@ -275,7 +275,7 @@ class ModelMetadataSerializerTests(TestCase):
     def setUp(self):
         """Set up test model metadata"""
         self.metadata = ModelMetadata.objects.create(
-            name='Alzheimer Detector',
+            name='Dementia Detector',
             version='1.0.0',
             architecture='ResNet-34',
             accuracy=0.92,
@@ -305,7 +305,7 @@ class ModelMetadataSerializerTests(TestCase):
         serializer = ModelMetadataSerializer(self.metadata)
         data = serializer.data
         
-        self.assertEqual(data['name'], 'Alzheimer Detector')
+        self.assertEqual(data['name'], 'Dementia Detector')
         self.assertEqual(data['version'], '1.0.0')
         self.assertEqual(data['architecture'], 'ResNet-34')
         self.assertEqual(data['accuracy'], 0.92)
@@ -334,7 +334,7 @@ class ModelMetadataSerializerTests(TestCase):
         
         self.assertEqual(len(serializer.data), 2)
         names = [item['name'] for item in serializer.data]
-        self.assertIn('Alzheimer Detector', names)
+        self.assertIn('Dementia Detector', names)
         self.assertIn('AD Detector V2', names)
     
     def test_serializer_read_only_id_field(self):

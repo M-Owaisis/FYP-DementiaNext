@@ -14,22 +14,26 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 
-load_dotenv()
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Always load backend/.env regardless of the shell's current working directory
+load_dotenv(BASE_DIR / ".env")
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-uj9sdorsusp)9^a^=&gi$4il%$ew7ue7sp69mfa4ldatz-k=h*"
+SECRET_KEY = os.getenv(
+    "DJANGO_SECRET_KEY",
+    "django-insecure-uj9sdorsusp)9^a^=&gi$4il%$ew7ue7sp69mfa4ldatz-k=h*",
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DJANGO_DEBUG", "true").lower() in {"1", "true", "yes", "y", "on"}
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -52,9 +56,11 @@ INSTALLED_APPS = [
     "allauth.socialaccount.providers.google",
     "dj_rest_auth",
     "dj_rest_auth.registration",
+    "django_q",
     # Local apps
     "authx",
     "detection",
+    "companion",
 ]
 
 MIDDLEWARE = [
@@ -94,17 +100,34 @@ WSGI_APPLICATION = "core.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+#
+# Production (HF Space): set DATABASE_URL to the Neon connection string and
+# the rest is handled by dj_database_url. Locally it falls back to the
+# component-based DB_HOST / DB_NAME / ... vars used by docker-compose dev.
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv('DB_NAME', 'dementianext_db'),
-        "USER": os.getenv('DB_USER', 'postgres'),
-        "PASSWORD": os.getenv('DB_PASSWORD', 'postgres'),
-        "HOST": os.getenv('DB_HOST', 'localhost'),
-        "PORT": os.getenv('DB_PORT', '5432'),
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+
+if DATABASE_URL:
+    import dj_database_url
+
+    DATABASES = {
+        "default": dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=True,
+        )
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ.get("DB_NAME", "dementianext_db"),
+            "USER": os.environ.get("DB_USER", "postgres"),
+            "PASSWORD": os.environ.get("DB_PASSWORD", "postgres"),
+            "HOST": os.environ.get("DB_HOST", "localhost"),
+            "PORT": os.environ.get("DB_PORT", "5432"),
+        }
+    }
 
 
 # Password validation
@@ -143,6 +166,38 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+# File storage: prefer Cloudflare R2 in production (S3-compatible), fall back
+# to the local filesystem for dev. R2_BUCKET being set is the trigger.
+
+R2_BUCKET = os.environ.get("R2_BUCKET", "").strip()
+
+if R2_BUCKET:
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3.S3Storage",
+            "OPTIONS": {
+                "bucket_name": R2_BUCKET,
+                "endpoint_url": os.environ["R2_ENDPOINT_URL"],
+                "access_key": os.environ["R2_ACCESS_KEY_ID"],
+                "secret_key": os.environ["R2_SECRET_ACCESS_KEY"],
+                "region_name": "auto",
+                "signature_version": "s3v4",
+                # R2 doesn't honour S3 ACLs the same way; turn them off.
+                "default_acl": None,
+                # Sign GET URLs so MRI files are not publicly readable.
+                "querystring_auth": True,
+                "querystring_expire": 3600,
+                "file_overwrite": False,
+            },
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
@@ -160,17 +215,42 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=7),
 }
 
-# CORS (dev)
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS — wide-open in dev, env-driven allow-list in production.
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+
+if not DEBUG:
+    CORS_ALLOWED_ORIGINS = [
+        origin.strip()
+        for origin in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
+        if origin.strip()
+    ]
+    CORS_ALLOW_CREDENTIALS = True
+
+# django-q2 — async task queue, uses the default DB (Neon) as broker so we
+# don't need a separate Redis container. Worker concurrency = 1 because
+# preprocessing is offloaded to Modal one job at a time.
+Q_CLUSTER = {
+    "name": "DementiaNext",
+    "workers": 1,
+    "recycle": 50,
+    "timeout": 900,        # 15 min — covers the slowest Modal preprocessing run
+    "retry": 960,          # must be > timeout
+    "queue_limit": 10,
+    "bulk": 1,
+    "orm": "default",
+    "catch_up": False,
+    "max_attempts": 1,     # don't auto-retry failed detections
+    "save_limit": 200,
+    "label": "Django Q",
+}
 
 # Sites framework (required by allauth)
 SITE_ID = 1
 
 # Allauth configuration
-ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
 ACCOUNT_EMAIL_VERIFICATION = "none"
-ACCOUNT_AUTHENTICATION_METHOD = "email"
-ACCOUNT_USERNAME_REQUIRED = False
 SOCIALACCOUNT_AUTO_SIGNUP = True
 
 # Social Auth Providers
@@ -191,8 +271,6 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
-# Import from environment if available
-import os
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
 GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', '')
 

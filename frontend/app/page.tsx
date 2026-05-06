@@ -115,7 +115,7 @@ function FeatureCard({ feature, isAuthenticated }: { feature: typeof features[0]
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault()
     if (!isAuthenticated) {
-      router.push('/signup')
+      router.push('/login')
     } else {
       router.push(feature.href)
     }
@@ -273,17 +273,17 @@ export default function HomePage() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-6 justify-center">
-              <Link href="/signup">
+              <Link href="/classification">
                 <Button className="text-xl px-12 py-8 bg-gradient-to-r from-blue-600 to-teal-600 hover:from-blue-700 hover:to-teal-700 shadow-2xl hover:shadow-3xl transition-all duration-300 transform hover:scale-105">
                   <Scan className="mr-3 w-6 h-6" />
-                  Start MRI Analysis
+                  Classification
                   <ChevronRight className="ml-2 w-6 h-6" />
                 </Button>
               </Link>
-              <Link href="/login">
+              <Link href="/detection">
                 <Button variant="outline" className="text-xl px-12 py-8 border-4 border-blue-600 text-blue-600 hover:bg-blue-50 shadow-xl hover:shadow-2xl transition-all duration-300">
                   <Shield className="mr-3 w-6 h-6" />
-                  Medical Portal Access
+                  Detection
                 </Button>
               </Link>
             </div>
@@ -439,17 +439,17 @@ export default function HomePage() {
               Join healthcare professionals worldwide using DementiaNext for accurate neurological diagnosis
             </p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center">
-              <Link href="/signup">
+              <Link href="/classification">
                 <Button className="text-xl px-12 py-8 bg-white text-blue-600 hover:bg-gray-100 shadow-2xl font-bold hover:shadow-3xl transition-all duration-300 transform hover:scale-105">
                   <Scan className="mr-3 w-6 h-6" />
-                  Start MRI Analysis
+                  Classification
                   <Sparkles className="ml-2 w-6 h-6" />
                 </Button>
               </Link>
-              <Link href="/login">
+              <Link href="/detection">
                 <Button className="text-xl px-12 py-8 bg-white/10 text-white border-4 border-white hover:bg-white hover:text-blue-600 shadow-2xl font-bold backdrop-blur hover:shadow-3xl transition-all duration-300">
                   <Shield className="mr-3 w-6 h-6" />
-                  Medical Portal Access
+                  Detection
                 </Button>
               </Link>
             </div>

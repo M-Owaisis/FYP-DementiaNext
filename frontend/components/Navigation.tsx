@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import Logo from './Logo'
-import { Brain, Activity, LogIn, LogOut, Menu, X, User, LayoutDashboard } from 'lucide-react'
+import { Brain, Activity, LogIn, LogOut, Menu, X, User, LayoutDashboard, MessageCircle, BookOpen, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from './ui/button'
 import { useAuth } from '@/contexts/AuthContext'
@@ -35,8 +35,9 @@ const Navigation = () => {
 
   const navItems = [
     { href: '/', label: 'Home', icon: Brain, show: true },
-    { href: '/detection', label: 'Detection', icon: Activity, show: isAuthenticated },
-    { href: '/explainable-ai', label: 'Analysis', icon: Activity, show: isAuthenticated },
+    { href: '/detection', label: 'Detection', icon: Activity, show: isAuthenticated && userRole === 'doctor' },
+    { href: '/companion', label: 'Companion', icon: MessageCircle, show: isAuthenticated && userRole !== 'doctor' },
+
   ].filter(item => item.show)
 
   const getDashboardLink = () => {
@@ -50,14 +51,24 @@ const Navigation = () => {
     setIsProfileDropdownOpen(false)
   }
 
+  // No more dark pages - all use light theme
+  const isDarkPage = false
+
   return (
-    <nav className="bg-white/80 backdrop-blur-xl border-b border-gray-200 sticky top-0 z-50 shadow-lg">
+    <nav className={cn(
+      "backdrop-blur-xl border-b sticky top-0 z-50",
+      isDarkPage 
+        ? "bg-[#171717]/90 border-gray-800" 
+        : "bg-white/80 border-gray-200 shadow-lg"
+    )}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-20">
+        <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-4 group">
+          <Link href="/" className="flex items-center space-x-3 group">
             <Logo />
-            <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-teal-600 to-green-600 bg-clip-text text-transparent">
+            <span className={cn(
+              "text-2xl font-bold bg-gradient-to-r from-blue-500 via-teal-500 to-green-500 bg-clip-text text-transparent"
+            )}>
               DementiaNext
             </span>
           </Link>
@@ -69,10 +80,12 @@ const Navigation = () => {
               {navItems.map((item) => (
                 <Link key={item.href} href={item.href}>
                   <div className={cn(
-                    "flex items-center space-x-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all relative overflow-hidden",
+                    "flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
                     pathname === item.href 
                       ? "bg-gradient-to-r from-blue-600 to-teal-600 text-white shadow-lg" 
-                      : "text-gray-600 hover:bg-gray-100"
+                      : isDarkPage
+                        ? "text-gray-300 hover:bg-gray-800 hover:text-white"
+                        : "text-gray-600 hover:bg-gray-100"
                   )}>
                     <item.icon className="w-4 h-4" />
                     <span>{item.label}</span>
@@ -87,24 +100,53 @@ const Navigation = () => {
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                    className="p-2 rounded-full bg-gradient-to-r from-blue-600 to-teal-600 text-white hover:from-blue-700 hover:to-teal-700 transition-all shadow-lg"
+                    className={cn(
+                      "p-2 rounded-full transition-all",
+                      isDarkPage
+                        ? "bg-gray-700 text-white hover:bg-gray-600"
+                        : "bg-gradient-to-r from-blue-600 to-teal-600 text-white hover:from-blue-700 hover:to-teal-700 shadow-lg"
+                    )}
                   >
                     <User className="w-5 h-5" />
                   </button>
                   
                   {isProfileDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
+                    <div className={cn(
+                      "absolute right-0 mt-2 w-48 rounded-lg shadow-xl py-2 z-50",
+                      isDarkPage 
+                        ? "bg-gray-800 border border-gray-700"
+                        : "bg-white border border-gray-200"
+                    )}>
                       <Link
                         href={getDashboardLink()}
-                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        className={cn(
+                          "flex items-center px-4 py-2 text-sm",
+                          isDarkPage ? "text-gray-300 hover:bg-gray-700" : "text-gray-700 hover:bg-gray-100"
+                        )}
                         onClick={() => setIsProfileDropdownOpen(false)}
                       >
                         <LayoutDashboard className="w-4 h-4 mr-3" />
                         Dashboard
                       </Link>
+                      {userRole !== 'doctor' && (
+                        <Link
+                          href="/companion/life-story"
+                          className={cn(
+                            "flex items-center px-4 py-2 text-sm",
+                            isDarkPage ? "text-gray-300 hover:bg-gray-700" : "text-gray-700 hover:bg-gray-100"
+                          )}
+                          onClick={() => setIsProfileDropdownOpen(false)}
+                        >
+                          <BookOpen className="w-4 h-4 mr-3" />
+                          Life Story
+                        </Link>
+                      )}
                       <button
                         onClick={handleLogout}
-                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        className={cn(
+                          "flex items-center w-full px-4 py-2 text-sm",
+                          isDarkPage ? "text-gray-300 hover:bg-gray-700" : "text-gray-700 hover:bg-gray-100"
+                        )}
                       >
                         <LogOut className="w-4 h-4 mr-3" />
                         Logout

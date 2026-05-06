@@ -25,6 +25,8 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+*.env.download
+env.local.download
 .coverage
 
 # vercel
@@ -47,6 +49,10 @@ env/
 db.sqlite3
 *.log
 mri_uploads/
+media/
+
+# ChromaDB vector store
+.chroma_db/
 
 # IDE
 .vscode/

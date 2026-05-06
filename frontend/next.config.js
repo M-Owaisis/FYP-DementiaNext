@@ -1,38 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: false, // Disable for better performance in development
+  reactStrictMode: false,
   swcMinify: true,
   experimental: {
-    optimizePackageImports: ['lucide-react', 'framer-motion'],
+    optimizePackageImports: ['lucide-react', 'framer-motion', 'recharts'],
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
-  webpack: (config, { dev, isServer }) => {
-    if (dev && !isServer) {
-      config.watchOptions = {
-        poll: 1000,
-        aggregateTimeout: 300,
-      }
-    }
-    // Optimize bundle size
-    config.optimization = {
-      ...config.optimization,
-      splitChunks: {
-        chunks: 'all',
-        cacheGroups: {
-          vendor: {
-            test: /[\\/]node_modules[\\/]/,
-            name: 'vendors',
-            chunks: 'all',
-          },
-        },
-      },
-    }
-    return config
+  onDemandEntries: {
+    maxInactiveAge: 1000 * 60 * 60,
+    pagesBufferLength: 20,
   },
 }
 
 module.exports = nextConfig
-
-

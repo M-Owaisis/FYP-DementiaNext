@@ -241,7 +241,7 @@ class ModelMetadataModelTests(TestCase):
     def test_create_model_metadata_complete(self):
         """Test creating ModelMetadata with all fields"""
         metadata = ModelMetadata.objects.create(
-            name='Alzheimer Detector',
+            name='Dementia Detector',
             version='1.0.0',
             architecture='ResNet-34',
             accuracy=0.92,
@@ -250,11 +250,11 @@ class ModelMetadataModelTests(TestCase):
             specificity=0.93,
             trained_on=datetime.now().date(),
             is_active=True,
-            model_path='models/alzheimers_detector.pth',
+            model_path='models/dementia_detector.pth',
             description='Binary classifier for AD detection'
         )
         
-        self.assertEqual(metadata.name, 'Alzheimer Detector')
+        self.assertEqual(metadata.name, 'Dementia Detector')
         self.assertEqual(metadata.version, '1.0.0')
         self.assertEqual(metadata.architecture, 'ResNet-34')
         self.assertEqual(metadata.accuracy, 0.92)

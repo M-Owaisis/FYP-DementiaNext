@@ -1,5 +1,7 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -58,7 +60,44 @@ export default function SignupPage() {
   const [error, setError] = useState('')
   const [isGoogleReady, setIsGoogleReady] = useState(false)
   const router = useRouter()
-  const { register } = useAuth()
+  const { register, refreshUser, user } = useAuth()
+
+  useEffect(() => {
+    if (user) {
+      if (user.role === 'patient') {
+        router.push('/patient-dashboard')
+      } else if (user.role === 'doctor') {
+        router.push('/doctor-dashboard')
+      }
+    }
+  }, [user, router])
+
+  // Helper function for Google authentication
+  const loginWithGoogle = async (credential: string, role: 'patient' | 'doctor') => {
+    const apiBase = (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '')
+    try {
+      const decoded = JSON.parse(atob(credential.split('.')[1]))
+      const response = await fetch(`${apiBase}/api/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: decoded.email,
+          name: decoded.name,
+          google_id: decoded.sub,
+          role: role
+        })
+      })
+      const data = await response.json()
+      if (response.ok && data.token) {
+        localStorage.setItem('authToken', data.token)
+        await refreshUser()
+        return { success: true }
+      }
+      return { success: false, error: data.error || 'Google authentication failed' }
+    } catch {
+      return { success: false, error: 'Network error during Google authentication' }
+    }
+  }
 
   // Load Google Identity Services
   useEffect(() => {
