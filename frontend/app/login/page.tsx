@@ -5,14 +5,24 @@ export const dynamic = 'force-dynamic'
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import {
-  Brain,
-  Lock,
-  Mail,
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { 
+  Brain, 
+  Scan, 
+  Stethoscope, 
+  Lock, 
+  Mail, 
+  Sparkles, 
   Loader2,
+  Activity,
+  Microscope,
+  Heart,
+  Shield,
+  Zap,
+  CheckCircle,
   AlertCircle
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
@@ -155,122 +165,281 @@ export default function LoginPage() {
   }, [isGoogleReady])
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md mb-8 flex flex-col items-center">
-        <div className="w-16 h-16 bg-blue-700 rounded-xl flex items-center justify-center mb-4 shadow-sm">
-          <Brain className="w-8 h-8 text-white" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-teal-50 relative overflow-hidden">
+      {/* Professional Medical Background */}
+      <div className="absolute inset-0">
+        {/* MRI Scan Pattern */}
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute top-20 left-10 w-96 h-96 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-teal-200 rounded-full mix-blend-multiply filter blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+          <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-green-200 rounded-full mix-blend-multiply filter blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
         </div>
-        <h2 className="text-center text-3xl font-extrabold text-slate-900 tracking-tight">
-          System Access
-        </h2>
-        <p className="mt-2 text-center text-sm text-slate-600">
-          Secure clinical portal for DementiaNext
-        </p>
+
+        {/* Floating Medical Elements */}
+        <div className="absolute inset-0 overflow-hidden">
+          {[...Array(8)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-16 h-16 opacity-10"
+              style={{
+                left: `${15 + i * 12}%`,
+                top: `${10 + i * 10}%`,
+              }}
+              animate={{
+                y: [0, -30, 0],
+                rotate: [0, 180, 360],
+                scale: [1, 1.2, 1],
+              }}
+              transition={{
+                duration: 15 + i * 2,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: i * 1.5,
+              }}
+            >
+              <Brain className="w-full h-full text-blue-600" />
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Scan Lines Animation */}
+        <motion.div
+          animate={{
+            x: [0, 100, 0],
+            opacity: [0.1, 0.3, 0.1],
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-400/20 to-transparent"
+        />
       </div>
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <Card className="border border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
-          <CardContent className="pt-8 pb-8 px-4 sm:px-10">
-            {error && (
-              <div className="mb-6 p-3 bg-red-50 border border-red-100 rounded-md text-red-800 text-sm flex items-start gap-2">
-                <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                <span className="pt-0.5">{error}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleLogin} className="space-y-5">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Institutional Email
-                </label>
-                <div className="relative rounded-md shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-slate-400" />
+      <div className="relative flex items-center justify-center min-h-screen p-4">
+        <div className="w-full max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
+          {/* Left Side - Logo/Brand Visual Only (no text) */}
+          <motion.div
+            initial={{ opacity: 0, x: -100 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, type: "spring" }}
+            className="hidden lg:block"
+          >
+            {/* Professional MRI Scanner */}
+            <div className="relative mb-16">
+              <motion.div
+                animate={{
+                  scale: [1, 1.02, 1],
+                  rotateY: [0, 2, 0],
+                }}
+                transition={{
+                  duration: 6,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+                className="relative"
+              >
+                {/* MRI Scanner Frame */}
+                <div className="w-96 h-96 mx-auto bg-gradient-to-br from-white to-blue-50 rounded-3xl border-4 border-blue-200 shadow-2xl relative overflow-hidden">
+                  {/* Professional Scanner Ring */}
+                  <div className="absolute inset-6 border-4 border-blue-300 rounded-full animate-spin" style={{ animationDuration: '12s' }}>
+                    <div className="absolute inset-3 border-2 border-cyan-300 rounded-full animate-spin" style={{ animationDuration: '8s', animationDirection: 'reverse' }}>
+                      <div className="absolute inset-3 border border-teal-300 rounded-full animate-spin" style={{ animationDuration: '6s' }}>
+                      </div>
+                    </div>
                   </div>
-                  <Input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="practitioner@hospital.org"
-                    className="pl-10 py-2 w-full border-slate-300 focus:border-blue-500 focus:ring-blue-500"
-                    required
+                  
+                  {/* Brain Scan Visualization */}
+                  <div className="absolute inset-12 flex items-center justify-center">
+                    <motion.div
+                      animate={{
+                        scale: [0.9, 1.1, 0.9],
+                        opacity: [0.7, 1, 0.7],
+                      }}
+                      transition={{
+                        duration: 4,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                      }}
+                      className="w-32 h-32 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full flex items-center justify-center shadow-2xl"
+                    >
+                      <Brain className="w-16 h-16 text-white" />
+                    </motion.div>
+                  </div>
+
+                  {/* Professional Scan Lines */}
+                  <motion.div
+                    animate={{
+                      y: [0, 400, 0],
+                    }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      ease: "linear"
+                    }}
+                    className="absolute w-full h-1 bg-gradient-to-r from-transparent via-blue-400 to-transparent opacity-60"
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Password
-                </label>
-                <div className="relative rounded-md shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-slate-400" />
-                  </div>
-                  <Input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter password"
-                    className="pl-10 py-2 w-full border-slate-300 focus:border-blue-500 focus:ring-blue-500"
-                    required
-                  />
+                {/* Medical Status Indicators */}
+                <div className="absolute -top-6 -right-6 w-16 h-16 bg-red-500 rounded-full flex items-center justify-center shadow-lg animate-pulse">
+                  <Heart className="w-8 h-8 text-white" />
                 </div>
-              </div>
+                <div className="absolute -bottom-6 -left-6 w-16 h-16 bg-green-500 rounded-full flex items-center justify-center shadow-lg animate-pulse" style={{ animationDelay: '0.5s' }}>
+                  <Activity className="w-8 h-8 text-white" />
+                </div>
+                <div className="absolute top-1/2 -left-10 w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center shadow-lg animate-pulse" style={{ animationDelay: '1s' }}>
+                  <Microscope className="w-6 h-6 text-white" />
+                </div>
+                <div className="absolute top-1/4 -right-8 w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center shadow-lg animate-pulse" style={{ animationDelay: '1.5s' }}>
+                  <Zap className="w-6 h-6 text-white" />
+                </div>
+              </motion.div>
+            </div>
 
-              <div className="pt-2">
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full flex justify-center py-2.5 px-4 rounded-md shadow-sm text-sm font-medium text-white bg-blue-700 hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Authenticating...
-                    </>
-                  ) : (
-                    'Secure Login'
-                  )}
-                </Button>
-              </div>
+            {/* Branding title */}
+            <motion.div 
+              className="text-center mt-10"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <h1 className="text-7xl font-bold bg-gradient-to-r from-blue-600 via-teal-600 to-green-600 bg-clip-text text-transparent mb-4">
+                DementiaNext
+              </h1>
+            </motion.div>
+          </motion.div>
 
-              <div className="mt-6">
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-slate-200"></div>
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-2 bg-white text-slate-500">SSO Provider</span>
+          {/* Right Side - Professional Login Form */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="w-full max-w-lg mx-auto">
+            <Card className="bg-white/90 backdrop-blur-xl border-blue-200 shadow-2xl">
+              <CardHeader className="text-center pb-8">
+                <div className="flex justify-center mb-6">
+                  <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full flex items-center justify-center shadow-2xl">
+                    <Brain className="w-10 h-10 text-white" />
                   </div>
                 </div>
+                <CardTitle className="text-2xl font-bold text-gray-900">Sign in</CardTitle>
+                <CardDescription className="text-gray-600">Access your account</CardDescription>
+              </CardHeader>
+              
+              <CardContent>
+                {/* Error Message */}
+                {error && (
+                  <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-center space-x-2">
+                    <AlertCircle className="w-5 h-5" />
+                    <span>{error}</span>
+                  </div>
+                )}
 
-                <div className="mt-6 w-full flex justify-center">
-                  {!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
-                    <p className="text-center text-xs text-amber-700 w-full mb-2">
-                      SSO configuration missing
-                    </p>
-                  )}
-                  <div className="w-full flex justify-center h-12 relative items-center">
+                <form onSubmit={handleLogin} className="space-y-6">
+                  {/* Email Input */}
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.6 }}
+                  >
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <Input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="your@email.com"
+                        className="pl-12 py-6 text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500 bg-white"
+                        required
+                      />
+                    </div>
+                  </motion.div>
+
+                  {/* Password Input */}
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.7 }}
+                  >
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Secure Password
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <Input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Enter secure password"
+                        className="pl-12 py-6 text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500 bg-white"
+                        required
+                      />
+                    </div>
+                  </motion.div>
+
+                  {/* Login Button */}
+                  <div>
+                    <Button
+                      type="submit"
+                      disabled={isLoading}
+                      className="w-full py-7 text-lg font-semibold bg-gradient-to-r from-blue-600 to-teal-600 hover:from-blue-700 hover:to-teal-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Accessing Medical Portal...
+                        </>
+                      ) : (
+                        <>
+                          <Shield className="mr-2 h-5 w-5" />
+                          Access Medical Platform
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="px-2 bg-white text-gray-500">or continue with</span>
+                    </div>
+                  </div>
+
+                  {/* Google Sign-In (GIS renderButton — JWT, no OAuth redirect_uri) */}
+                  <div className="w-full space-y-2">
+                    {!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
+                      <p className="text-center text-sm text-amber-700">
+                        Google sign-in is not configured (missing NEXT_PUBLIC_GOOGLE_CLIENT_ID).
+                      </p>
+                    )}
+                    <div
+                      ref={googleBtnRef}
+                      className="flex min-h-[48px] w-full items-center justify-center"
+                    />
                     {!isGoogleReady && (
-                      <div className="absolute flex items-center justify-center gap-2 text-sm text-slate-500 z-0">
+                      <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Loading SSO...
+                        Loading Google…
                       </div>
                     )}
-                    <div ref={googleBtnRef} className="z-10 w-full flex justify-center" />
                   </div>
-                </div>
-              </div>
 
-              <div className="text-center text-sm text-slate-600 mt-6 pt-4 border-t border-slate-100">
-                <span>Requires access? </span>
-                <Link href="/signup" className="text-blue-700 hover:text-blue-800 font-medium">
-                  Request an account
-                </Link>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+                  {/* Sign Up Link */}
+                  <div className="text-center text-sm text-gray-600">
+                    <span className="text-gray-500">New to DementiaNext? </span>
+                    <Link href="/signup" className="text-blue-600 hover:text-blue-700 font-semibold transition-colors">
+                      Register Medical Account
+                    </Link>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
       </div>
     </div>
   )
