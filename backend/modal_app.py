@@ -59,9 +59,12 @@ image = (
         }
     )
     .pip_install(
+        # CRITICAL: numpy<2. Many ML libs (nibabel, pydicom, scipy wheels)
+        # are compiled against numpy 1.x and segfault under 2.x with the
+        # classic "numpy.core.multiarray failed to import" error.
+        "numpy<2",
         "torch",
         "torchvision",
-        "numpy>=1.26",
         "scipy",
         "scikit-learn",
         "nibabel",

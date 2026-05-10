@@ -1,0 +1,155 @@
+\documentclass[11pt, a4paper]{article}
+
+\usepackage[margin=2.2cm, top=2cm, bottom=2cm]{geometry}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{titlesec}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!50!black,
+    urlcolor=blue!50!black,
+}
+
+\titleformat{\section}{\large\bfseries}{\thesection}{0.6em}{}
+\titlespacing*{\section}{0pt}{1.4ex}{0.6ex}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.5em}{}
+\titlespacing*{\subsection}{0pt}{1.0ex}{0.4ex}
+
+\setlist[itemize]{itemsep=0.2ex, topsep=0.4ex, leftmargin=*}
+\setlist[enumerate]{itemsep=0.2ex, topsep=0.4ex, leftmargin=*}
+
+\setlength{\parskip}{0.5ex}
+\setlength{\parindent}{0pt}
+\renewcommand{\arraystretch}{1.15}
+
+\title{\vspace{-2.0cm}\textbf{DementiaNext --- System Deployment}}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\vspace{-1.4cm}
+
+\section{Overview}
+
+DementiaNext combines a Next.js frontend, a Django REST backend, two ResNet-34 deep-learning classifiers (binary dementia detector and four-class subtype classifier), and a multi-stage MRI preprocessing pipeline (HD-BET skull stripping, FSL bias-field correction, MNI152 spatial normalization, intensity normalization, and resampling). Production deployment was constrained by four requirements: \textbf{(i)} zero recurring monthly cost, \textbf{(ii)} full pipeline functionality including the Linux-only HD-BET and FSL system tools, \textbf{(iii)} GPU acceleration for the skull-stripping step, and \textbf{(iv)} operational simplicity sufficient for a single-developer maintenance model.
+
+No single free hosting platform satisfies all four constraints: free Platform-as-a-Service tiers (Render, Railway, Fly.io) cap memory at 512 MB, which is insufficient for a co-resident PyTorch and ChromaDB deployment; free Infrastructure-as-a-Service tiers do not provide GPU access. The solution is a distributed architecture spanning six platforms, each contributing the specific resource it makes available, with a single asynchronous task queue stitching them together.
+
+\section{Architecture}
+
+\subsection{Component Map}
+
+\begin{center}
+\small
+\begin{tabular}{>{\bfseries}p{3.0cm} p{4.0cm} p{8.6cm}}
+\toprule
+Service & Role & Reason for selection \\
+\midrule
+Vercel & Next.js frontend & Native framework support; 100 GB egress on Hobby tier; auto-deploy from GitHub. \\
+Hugging Face Space (Docker) & Django + worker host & 16 GB RAM on free CPU Basic tier; full Linux Docker control; ephemeral disk sufficient for ChromaDB rebuilds. \\
+Modal Labs & GPU preprocessing & Only free-tier provider exposing on-demand GPU; \$30 monthly credit covers $\sim$750 T4-minutes; per-second billing. \\
+Neon & Postgres database & Always-on serverless Postgres, 500 MB free; doubles as the django-q2 task broker. \\
+Backblaze B2 & Object storage (MRI files) & 10 GB free, S3-compatible API; egress free within Backblaze partner network. \\
+Hugging Face Hub & Model weight registry & Unlimited public storage; pulled into the Space at boot. \\
+Groq API & Companion LLM inference & Free tier sufficient for the patient-facing chatbot. \\
+UptimeRobot & Health monitor & 5-minute polling on \texttt{/api/health} prevents the HF Space from pausing after 48 hours of idle traffic. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Request Flow}
+
+A single end-to-end detection request traverses the architecture as follows:
+
+\begin{enumerate}
+    \item The browser issues an authenticated MRI upload to the Vercel-hosted frontend, which streams the file to Django on the HF Space using a JSON Web Token issued at login.
+    \item Django persists the upload via \texttt{django-storages} directly to Backblaze B2, records a \texttt{DetectionResult} row in Neon Postgres, and enqueues a preprocessing task using \texttt{django-q2} (broker: the Postgres database itself, no separate Redis container).
+    \item A worker process running alongside Gunicorn in the same container picks up the task, generates a presigned GET URL for the input file and a presigned PUT URL for the preprocessed output, and invokes the Modal function via its Python SDK.
+    \item Modal cold-starts a T4 GPU container (warm-pool reuse for $\le$5 minutes), downloads the input from Backblaze, runs Phase 1 (DICOM $\rightarrow$ NIfTI) and Phase 2 (HD-BET TTA-ensemble, N4 bias correction, MNI registration, normalization, resampling), and uploads the preprocessed NIfTI back to Backblaze.
+    \item The worker downloads the preprocessed volume to local scratch, extracts the central axial slice, and runs the appropriate ResNet-34 (binary or four-class subtype) on CPU. Final probabilities are persisted back to the \texttt{DetectionResult} row.
+    \item The frontend polls \texttt{GET /detection/<id>} every four seconds. On observing \texttt{status = "completed"}, it renders the predicted class, confidence score, and full classification probabilities.
+\end{enumerate}
+
+\section{Implementation Details}
+
+\subsection{Asynchronous Task Queue}
+
+A typical preprocessing run takes approximately 250 seconds, far in excess of any reasonable HTTP timeout. The detection request is therefore decoupled from the computation: the synchronous request handler only writes a row, queues a job, and returns HTTP 202 with a task identifier. The compute path is implemented as a module-level function (\texttt{detection.tasks.run\_detection\_task}) executed by \texttt{django-q2}'s \texttt{qcluster} process, which runs in the same container as Gunicorn but in an independent process. \texttt{django-q2} was selected over Celery because it accepts the project's existing Postgres database as the broker, eliminating an entire service from the deployment.
+
+Worker concurrency is fixed at one. This serializes preprocessing requests, which prevents the 16 GB HF Space from running out of memory under contention; users instead experience predictable queueing if multiple detections are submitted simultaneously.
+
+\subsection{GPU Offloading}
+
+The Modal function image is built from \texttt{python:3.11-slim} extended with the official FSL installer ($\sim$5 GB), \texttt{hd-bet}, and the project's \texttt{pipeline/} package. The function is decorated with \texttt{gpu="T4"}, a 900-second timeout, and a 300-second \texttt{scaledown\_window} which keeps containers warm between back-to-back invocations. A persistent Modal volume mounted at \texttt{/root/.hd\_bet} caches the $\sim$1.5 GB HD-BET brain-extraction weights, eliminating the redownload that would otherwise occur on every cold start. NumPy is pinned to the 1.x series in the image build because several scientific dependencies (\texttt{nibabel}, \texttt{pydicom}, scipy wheels) are compiled against the 1.x ABI and segfault under NumPy 2.x with the canonical \texttt{numpy.core.multiarray failed to import} error.
+
+\subsection{Object Storage Adapter}
+
+Django's default \texttt{FileSystemStorage} is replaced with \texttt{S3Boto3Storage} from \texttt{django-storages}, configured against Backblaze B2's S3-compatible endpoint (\texttt{us-east-005}). Storage activation is gated on the presence of the \texttt{R2\_BUCKET} environment variable; in its absence, Django falls back to the local filesystem, preserving the original development workflow. Modal does not receive Backblaze credentials directly; instead, the worker generates time-bounded presigned URLs for one input read and one output write per call, restricting Modal's filesystem privileges to two specific object operations per detection.
+
+\subsection{Configuration and Boot Sequence}
+
+Three new artifacts were added to the repository: a \texttt{Dockerfile} that produces the HF Space image (Python 3.11, dependencies, non-root UID 1000, listening on port 7860); a \texttt{start.sh} script that applies database migrations against Neon, downloads the trained \texttt{.pth} weights from Hugging Face Hub if absent, and finally launches \texttt{gunicorn} alongside \texttt{python manage.py qcluster}; and \texttt{modal\_app.py}, the Modal application definition. The trained model weights ($\sim$170 MB combined) are excluded from the repository and delivered out-of-band through Hugging Face Hub, keeping the image build cacheable.
+
+\section{Performance and Cost}
+
+\subsection{Latency}
+
+A representative cold-start run on a 22 MB, 166-slice DICOM zip produced the following timing (clock time, T4 GPU):
+
+\begin{center}
+\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{6.4cm} r >{\raggedright\arraybackslash}p{4.0cm}}
+\toprule
+\textbf{Stage} & \textbf{Time} & \textbf{Hardware} \\
+\midrule
+Modal cold start (GPU allocation) & 30--60 s & Modal scheduler \\
+Phase 1: DICOM $\rightarrow$ NIfTI conversion & $\sim$2 s & Modal CPU \\
+HD-BET ensemble (TTA + classical vote) & $\sim$187 s & Modal T4 GPU + CPU \\
+N4 bias-field correction & $\sim$34 s & Modal CPU \\
+MNI spatial normalization & $\sim$2 s & Modal CPU \\
+Intensity normalization, resampling & $\sim$3 s & Modal CPU \\
+ResNet-34 inference (binary, 224$\times$224) & $\sim$5 s & HF Space CPU \\
+\midrule
+\textbf{End-to-end (cold)} & $\sim$250 s & --- \\
+\textbf{End-to-end (warm container)} & $\sim$180--200 s & --- \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Test-Time Augmentation in HD-BET drives the longest single contribution: the model is evaluated eight times against augmented input volumes and the masks are averaged, increasing inference time approximately 8$\times$ while improving brain-extraction reliability on atrophied cases that are characteristic of the dementia patient population.
+
+\subsection{Cost}
+
+The deployment remains free up to the per-service quotas listed below. Modal's monthly credit is the binding constraint at scale.
+
+\begin{center}
+\small
+\begin{tabular}{>{\bfseries}p{2.8cm} p{4.5cm} p{8.0cm}}
+\toprule
+Service & Free quota & Approximate capacity at the quota \\
+\midrule
+Vercel & 100 GB egress per month & 10\,000+ active users \\
+HF Space (CPU Basic) & 16 GB RAM, no time limit & continuous availability \\
+Modal & \$30 credit per month, renewing & $\sim$300--500 detections per month at T4 \\
+Neon Postgres & 500 MB storage, always on & $\sim$50\,000 detection rows \\
+Backblaze B2 & 10 GB storage, free egress & $\sim$50 raw MRI uploads at 200 MB each \\
+Hugging Face Hub & unlimited public storage & --- \\
+Groq API & free tier rate-limited & light chatbot use \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Security}
+
+Credentials (\texttt{DJANGO\_SECRET\_KEY}, \texttt{DATABASE\_URL}, Backblaze keys, Hugging Face token, Modal tokens, Groq key) are stored as encrypted environment variables in the HF Space configuration; none are committed to the repository. GitHub Push Protection actively blocked an inadvertent commit containing OAuth credentials during deployment, requiring a history rewrite (\texttt{git reset -{}-soft}) followed by a force-push to remediate. Cross-Origin Resource Sharing on the backend allow-lists exactly the production frontend origin via the \texttt{CORS\_ALLOWED\_ORIGINS} environment variable. MRI uploads are stored in private B2 buckets and accessed exclusively through signed URLs with one-hour expiry; the Modal worker never receives long-lived storage credentials.
+
+\section{Conclusion}
+
+The deployment satisfies the four original constraints. End-to-end latency of approximately 250 seconds for a cold-start cycle (180--200 seconds warm) is competitive with research-grade neuroimaging pipelines and well within tolerable bounds for asynchronous clinical decision support, where the doctor reviews detections rather than waiting on them in real time. The system runs entirely on free-tier resources from six providers, with sufficient headroom for an FYP demonstration workload and predictable upgrade paths if any tier is exceeded. Architectural separation is preserved at every layer: any individual provider can be substituted (e.g., Modal $\rightarrow$ a self-hosted GPU server; Backblaze $\rightarrow$ Cloudflare R2) without impacting the remaining services.
+
+\end{document}
