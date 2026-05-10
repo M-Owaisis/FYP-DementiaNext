@@ -174,7 +174,10 @@ export default function LoginPage() {
               <div className="w-16 h-16 bg-blue-700 rounded-xl flex items-center justify-center mb-4 shadow-sm">
                 <Brain className="w-8 h-8 text-white" />
               </div>
-              <h2 className="text-center text-3xl font-extrabold text-slate-900 tracking-tight">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-teal-600 to-green-600 bg-clip-text text-transparent mb-2">
+                DementiaNext
+              </h1>
+              <h2 className="text-center text-xl font-semibold text-slate-900 tracking-tight">
                 System Access
               </h2>
               <p className="mt-2 text-center text-sm text-slate-600">

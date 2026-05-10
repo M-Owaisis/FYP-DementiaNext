@@ -201,57 +201,61 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-4 gap-8">
-            <div className="relative p-6 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col h-full">
-              <div className="text-5xl font-extrabold text-slate-200 mb-6 font-mono">01</div>
-              <div className="mb-4">
-                <div className="w-10 h-10 rounded-md bg-white border border-slate-200 flex items-center justify-center text-blue-700 shadow-sm">
-                  <Database className="w-5 h-5" />
+          <div className="relative">
+            {/* Connecting line hidden on mobile, visible on lg */}
+            <div className="hidden lg:block absolute top-[120px] left-[12%] right-[12%] h-1 bg-slate-100 -z-10"></div>
+            
+            <div className="grid lg:grid-cols-4 gap-8">
+              <div className="relative flex flex-col items-center">
+                <div className="w-16 h-16 rounded-full bg-blue-50 border-4 border-white flex items-center justify-center text-blue-700 shadow-md mb-6 relative z-10 z-10 mx-auto">
+                  <Database className="w-7 h-7" />
+                  <div className="hidden lg:block absolute -right-1/2 w-full border-t border-dashed border-blue-300"></div>
+                </div>
+                <div className="text-center px-2">
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">1. Data Acquisition</h3>
+                  <p className="text-slate-600 text-sm leading-relaxed">
+                    Secure upload of DICOM folders or NIfTI files. Automatic background conversion of zip and dcm files to standard NIfTI structures.
+                  </p>
                 </div>
               </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2">Data Acquisition</h3>
-              <p className="text-slate-600 text-sm leading-relaxed mb-4 flex-grow">
-                Upload DICOM folders or NIfTI files. Automatic conversion from ZIP to standardized formats.
-              </p>
-            </div>
 
-            <div className="relative p-6 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col h-full">
-              <div className="text-5xl font-extrabold text-slate-200 mb-6 font-mono">02</div>
-              <div className="mb-4">
-                <div className="w-10 h-10 rounded-md bg-white border border-slate-200 flex items-center justify-center text-blue-700 shadow-sm">
-                  <Microscope className="w-5 h-5" />
+              <div className="relative flex flex-col items-center">
+                <div className="w-16 h-16 rounded-full bg-blue-50 border-4 border-white flex items-center justify-center text-blue-700 shadow-md mb-6 relative z-10 mx-auto">
+                  <Microscope className="w-7 h-7" />
+                  <div className="hidden lg:block absolute -right-1/2 w-full border-t border-dashed border-blue-300"></div>
+                </div>
+                <div className="text-center px-2">
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">2. Phase 2 Preprocessing</h3>
+                  <p className="text-slate-600 text-sm leading-relaxed">
+                    Cloud deployment of intensive operations via Modal GPU instances including robust HD-BET skull stripping and MNI spatial realignment.
+                  </p>
                 </div>
               </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2">GPU Preprocessing</h3>
-              <p className="text-slate-600 text-sm leading-relaxed mb-4 flex-grow">
-                Cloud-based Phase 2 processing: HD-BET skull stripping, bias field correction, and intensity normalization.
-              </p>
-            </div>
 
-            <div className="relative p-6 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col h-full">
-              <div className="text-5xl font-extrabold text-slate-200 mb-6 font-mono">03</div>
-              <div className="mb-4">
-                <div className="w-10 h-10 rounded-md bg-white border border-slate-200 flex items-center justify-center text-blue-700 shadow-sm">
-                  <Scan className="w-5 h-5" />
+              <div className="relative flex flex-col items-center">
+                <div className="w-16 h-16 rounded-full bg-blue-50 border-4 border-white flex items-center justify-center text-blue-700 shadow-md mb-6 relative z-10 mx-auto">
+                  <Scan className="w-7 h-7" />
+                  <div className="hidden lg:block absolute -right-1/2 w-full border-t border-dashed border-blue-300"></div>
+                </div>
+                <div className="text-center px-2">
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">3. Analysis Engine</h3>
+                  <p className="text-slate-600 text-sm leading-relaxed">
+                    Multi-stage inference utilizing PyTorch. First filtering standard vs. cognitive decline, followed by specific classification (e.g., AD vs. Parkinson's).
+                  </p>
                 </div>
               </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2">Analysis Engine</h3>
-              <p className="text-slate-600 text-sm leading-relaxed mb-4 flex-grow">
-                Classification via dual PyTorch models (Alzheimer's Binary vs. Subtype Classifiers) on structured sequences.
-              </p>
-            </div>
 
-            <div className="relative p-6 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col h-full">
-              <div className="text-5xl font-extrabold text-slate-200 mb-6 font-mono">04</div>
-              <div className="mb-4">
-                <div className="w-10 h-10 rounded-md bg-white border border-slate-200 flex items-center justify-center text-blue-700 shadow-sm">
-                  <FileText className="w-5 h-5" />
+              <div className="relative flex flex-col items-center">
+                <div className="w-16 h-16 rounded-full bg-blue-50 border-4 border-white flex items-center justify-center text-blue-700 shadow-md mb-6 relative z-10 mx-auto">
+                  <FileText className="w-7 h-7" />
+                </div>
+                <div className="text-center px-2">
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">4. Reporting & XAI</h3>
+                  <p className="text-slate-600 text-sm leading-relaxed">
+                    Generation of transparent visual reports via Grad-CAM mappings alongside quantitative diagnosis percentages suitable for FHIR export.
+                  </p>
                 </div>
               </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2">Reporting & XAI</h3>
-              <p className="text-slate-600 text-sm leading-relaxed mb-4 flex-grow">
-                Generate clinical metrics, Grad-CAM transparent insights, and printable evaluation summaries.
-              </p>
             </div>
           </div>
         </div>
