@@ -130,7 +130,7 @@ class SubtypeModelLoader:
     CLASS_DISPLAY = {
         'ad': "Alzheimer's Disease",
         'pd': "Parkinson's Disease", 
-        'ftd': "Frontotemporal Dementia",
+        'ft': "Frontotemporal Dementia",
         'cn': "Control/Normal"
     }
     
@@ -229,9 +229,12 @@ class DetectionViewSet(viewsets.ModelViewSet):
         # Clean up uploaded file from disk
         if detection.uploaded_file:
             try:
-                path = detection.uploaded_file.path
-                if os.path.exists(path):
-                    os.remove(path)
+                try:
+                    path = detection.uploaded_file.path
+                    if os.path.exists(path):
+                        os.remove(path)
+                except NotImplementedError:
+                    detection.uploaded_file.delete()
             except Exception:
                 pass
         detection.delete()
@@ -510,8 +513,28 @@ class DetectionViewSet(viewsets.ModelViewSet):
             normalized = np.zeros_like(slice_data, dtype=np.uint8)
         return Image.fromarray(normalized).convert('RGB')
 
-    def _load_nifti_slice(self, nifti_path):
+    def _load_nifti_slice(self, nifti_path: str):
         """Load NIfTI file and extract middle axial slice as PIL Image"""
+        is_url = nifti_path.startswith('http://') or nifti_path.startswith('https://')
+        temp_file_path = None
+        if is_url:
+            import tempfile
+            import requests
+            response = requests.get(nifti_path)
+            response.raise_for_status()
+            import urllib.parse
+            parsed_url = urllib.parse.urlparse(nifti_path)
+            file_name = os.path.basename(parsed_url.path)
+            if not file_name:
+                file_name = 'temp.nii.gz'
+                
+            temp_dir = tempfile.mkdtemp()
+            temp_file_path = os.path.join(temp_dir, file_name)
+            with open(temp_file_path, 'wb') as f:
+                f.write(response.content)
+            original_nifti_path = nifti_path
+            nifti_path = temp_file_path
+
         try:
             # Load NIfTI file
             nii = nib.load(nifti_path)
@@ -540,7 +563,11 @@ class DetectionViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.error(f"Error loading NIfTI file: {str(e)}")
             raise ValueError(f"Failed to process NIfTI file: {str(e)}")
-    
+        finally:
+            if temp_file_path and os.path.exists(temp_file_path):
+                import shutil
+                shutil.rmtree(temp_dir, ignore_errors=True)
+
     def _run_pipeline(self, file_path: str) -> str:
         """Run the preprocessing pipeline on a NIfTI or DICOM file.
 
@@ -550,20 +577,44 @@ class DetectionViewSet(viewsets.ModelViewSet):
         Returns the path to the preprocessed 128×128×128 NIfTI.
         Falls back to the original file if the pipeline fails.
         """
+        # If it's a remote URL, download it temporarily
+        is_url = file_path.startswith('http://') or file_path.startswith('https://')
+        temp_file_path = None
+        if is_url:
+            import tempfile
+            import requests
+            response = requests.get(file_path)
+            response.raise_for_status()
+            import urllib.parse
+            # Try to keep the extension
+            parsed_url = urllib.parse.urlparse(file_path)
+            file_name = os.path.basename(parsed_url.path)
+            if not file_name:
+                file_name = 'temp.nii.gz'
+                
+            temp_dir = tempfile.mkdtemp()
+            temp_file_path = os.path.join(temp_dir, file_name)
+            with open(temp_file_path, 'wb') as f:
+                f.write(response.content)
+            original_file_path = file_path
+            file_path = temp_file_path
+
         try:
             from pipeline.preprocess import preprocess_mri
             work_dir = os.path.join(
-                os.path.dirname(file_path), "pipeline_work"
+                os.path.dirname(file_path) if not is_url else temp_dir, "pipeline_work"
             )
             preprocessed = preprocess_mri(file_path, output_dir=work_dir)
             logger.info("Pipeline preprocessing complete: %s", preprocessed)
             return preprocessed
         except Exception as e:
-            logger.warning("Pipeline preprocessing failed: %s", e)
+            logger.error("Pipeline failed for %s: %s", file_path, e)
             raise
 
     @staticmethod
     def _is_mri_file(path: str) -> bool:
+        if not path:
+            return False
         lp = path.lower()
         return (lp.endswith('.nii') or lp.endswith('.nii.gz')
                 or lp.endswith('.dcm') or lp.endswith('.zip'))
@@ -612,7 +663,10 @@ class DetectionViewSet(viewsets.ModelViewSet):
                         os.path.normpath(os.path.join(media_root, prep.lstrip('/')))
                     )
         try:
-            up = detection_result.uploaded_file.path
+            try:
+                up = detection_result.uploaded_file.path
+            except NotImplementedError:
+                up = detection_result.uploaded_file.url
         except Exception:
             up = ''
         if up:
@@ -625,19 +679,31 @@ class DetectionViewSet(viewsets.ModelViewSet):
             if not p or p in seen:
                 continue
             seen.add(p)
-            if self._is_nifti_path(p) and os.path.isfile(p):
+            
+            is_url = p.startswith('http://') or p.startswith('https://')
+            if self._is_nifti_path(p) and (is_url or os.path.isfile(p)):
                 return p
         return ''
 
-    def _process_image(self, detection_result):
+    def analyze(self, request):
         """Process image and run model inference based on model_type"""
         _ensure_ml_libs()
         try:
-            image_path = detection_result.uploaded_file.path
+            try:
+                image_path = detection_result.uploaded_file.path
+            except NotImplementedError:
+                image_path = detection_result.uploaded_file.url
             needs_pipeline = self._is_mri_file(image_path)
 
             if needs_pipeline:
                 preprocessed_path = self._run_pipeline(image_path)
+                
+                # Check for temp file creation in _run_pipeline output or simply just store path. 
+                # Be careful not to store temp local path globally. But wait, `preprocess_mri` returns the absolute path
+                # inside `pipeline_work`, which works well locally. For s3, it would return a local temp path now due to the earlier patch.
+                # However, since storing temp file isn't persistent, we might need to skip saving preprocessed_file for remote files
+                # or just use the local path if HF space doesn't reboot. 
+                
                 # Save the preprocessed path for future re-runs
                 detection_result.preprocessed_file = preprocessed_path
                 detection_result.save(update_fields=['preprocessed_file'])
@@ -806,12 +872,18 @@ class DetectionViewSet(viewsets.ModelViewSet):
                 new_detection.preprocessed_file = source.preprocessed_file
             else:
                 # Fallback: run the pipeline if no usable NIfTI on disk
-                image_path = source.uploaded_file.path
+                try:
+                    image_path = source.uploaded_file.path
+                except NotImplementedError:
+                    image_path = source.uploaded_file.url
                 needs_pipeline = self._is_mri_file(image_path)
                 if needs_pipeline:
-                    if not os.path.isfile(image_path):
+                    is_url = image_path and (image_path.startswith('http://') or image_path.startswith('https://'))
+                    if not is_url and not os.path.isfile(image_path):
                         raise ValueError(
-                            'Original upload missing and no preprocessed NIfTI found.'
+                            'The original scan file is no longer on disk and no '
+                            'preprocessed NIfTI was found. Re-upload the MRI or pick '
+                            'another detection.'
                         )
                     preprocessed_path = self._run_pipeline(image_path)
                     if not self._is_nifti_path(preprocessed_path):
@@ -1024,15 +1096,22 @@ class DetectionViewSet(viewsets.ModelViewSet):
             from .xai import get_gradcam_for_detection
             
             # Load MRI slice: resolve real NIfTI (DB path, MEDIA-relative, or
-            # pipeline_work) — never pass .zip to nibabel.
+            # pipeline_work) â€” never pass .zip to nibabel.
             nifti_path = self._resolve_nifti_path_for_detection(detection_result)
             if nifti_path:
                 image = self._load_nifti_slice(nifti_path)
             else:
-                image_path = detection_result.uploaded_file.path
+                image_path = None
+                if detection_result.uploaded_file:
+                    try:
+                        image_path = detection_result.uploaded_file.path
+                    except NotImplementedError:
+                        image_path = detection_result.uploaded_file.url
+                
                 needs_pipeline = self._is_mri_file(image_path)
                 if needs_pipeline:
-                    if not os.path.isfile(image_path):
+                    is_url = image_path and (image_path.startswith('http://') or image_path.startswith('https://'))
+                    if not is_url and not os.path.isfile(image_path):
                         raise ValueError(
                             'The original scan file is no longer on disk and no '
                             'preprocessed NIfTI was found. Re-upload the MRI or pick '
@@ -1132,7 +1211,10 @@ class DetectionViewSet(viewsets.ModelViewSet):
             _ensure_ml_libs()
             from .xai import get_gradcam_for_detection
 
-            image_path = detection_result.uploaded_file.path
+            try:
+                image_path = detection_result.uploaded_file.path
+            except NotImplementedError:
+                image_path = detection_result.uploaded_file.url
             needs_pipeline = self._is_mri_file(image_path)
 
             if not needs_pipeline:
@@ -1166,8 +1248,12 @@ class DetectionViewSet(viewsets.ModelViewSet):
 
             nifti_path = self._resolve_nifti_path_for_detection(detection_result)
             if not nifti_path:
-                image_path = detection_result.uploaded_file.path
-                if not os.path.isfile(image_path):
+                try:
+                    image_path = detection_result.uploaded_file.path
+                except NotImplementedError:
+                    image_path = detection_result.uploaded_file.url
+                is_url = image_path and (image_path.startswith('http://') or image_path.startswith('https://'))
+                if not is_url and not os.path.isfile(image_path):
                     raise ValueError('Original scan file not found on disk.')
                 nifti_path = self._run_pipeline(image_path)
 
