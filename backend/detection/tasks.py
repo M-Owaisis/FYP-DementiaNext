@@ -41,17 +41,24 @@ def _is_mri_filename(name: str) -> bool:
 
 
 def _r2_client():
-    """Build a boto3 S3 client pointed at Cloudflare R2."""
+    """Build a boto3 S3 client pointed at Cloudflare R2 or Backblaze B2."""
+    import re
     import boto3
     from botocore.client import Config
 
+    endpoint_url = os.environ["R2_ENDPOINT_URL"]
+
+    # Derive region: Backblaze B2 endpoints look like s3.us-east-005.backblazeb2.com
+    b2_match = re.search(r's3\.([a-z0-9-]+)\.backblazeb2\.com', endpoint_url)
+    region = b2_match.group(1) if b2_match else "auto"
+
     return boto3.client(
         "s3",
-        endpoint_url=os.environ["R2_ENDPOINT_URL"],
+        endpoint_url=endpoint_url,
         aws_access_key_id=os.environ["R2_ACCESS_KEY_ID"],
         aws_secret_access_key=os.environ["R2_SECRET_ACCESS_KEY"],
-        region_name="auto",
-        config=Config(signature_version="s3v4"),
+        region_name=region,
+        config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
     )
 
 

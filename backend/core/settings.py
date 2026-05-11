@@ -169,28 +169,45 @@ STATIC_URL = "static/"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-# File storage: prefer Cloudflare R2 in production (S3-compatible), fall back
-# to the local filesystem for dev. R2_BUCKET being set is the trigger.
+# File storage: prefer S3-compatible object storage (Cloudflare R2 or
+# Backblaze B2) in production; fall back to local filesystem for dev.
+# R2_BUCKET being set is the trigger.
 
 R2_BUCKET = os.environ.get("R2_BUCKET", "").strip()
 
 if R2_BUCKET:
+    _endpoint_url = os.environ["R2_ENDPOINT_URL"]
+
+    # Derive region from the endpoint URL so this works for both Cloudflare R2
+    # (region "auto") and Backblaze B2 (region like "us-east-005").
+    # Backblaze endpoints look like: https://s3.us-east-005.backblazeb2.com
+    # Cloudflare endpoints look like: https://<account>.r2.cloudflarestorage.com
+    import re as _re
+    _b2_match = _re.search(r's3\.([a-z0-9-]+)\.backblazeb2\.com', _endpoint_url)
+    _region = _b2_match.group(1) if _b2_match else "auto"
+    _is_backblaze = _b2_match is not None
+
     STORAGES = {
         "default": {
             "BACKEND": "storages.backends.s3.S3Storage",
             "OPTIONS": {
                 "bucket_name": R2_BUCKET,
-                "endpoint_url": os.environ["R2_ENDPOINT_URL"],
+                "endpoint_url": _endpoint_url,
                 "access_key": os.environ["R2_ACCESS_KEY_ID"],
                 "secret_key": os.environ["R2_SECRET_ACCESS_KEY"],
-                "region_name": "auto",
+                "region_name": _region,
                 "signature_version": "s3v4",
-                # R2 doesn't honour S3 ACLs the same way; turn them off.
+                # Neither R2 nor B2 honours standard S3 ACLs; turn them off.
                 "default_acl": None,
                 # Sign GET URLs so MRI files are not publicly readable.
                 "querystring_auth": True,
                 "querystring_expire": 3600,
                 "file_overwrite": False,
+                # Backblaze B2 requires path-style addressing (not virtual-hosted).
+                "addressing_style": "path",
+                # Prevent django-storages from calling GetBucketLocation
+                # (not supported by B2 app keys scoped to a single bucket).
+                "location": "",
             },
         },
         "staticfiles": {
