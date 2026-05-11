@@ -802,7 +802,8 @@ class DetectionViewSet(viewsets.ModelViewSet):
             if nifti_path:
                 logger.info("Rerun: loading NIfTI: %s", nifti_path)
                 image = self._load_nifti_slice(nifti_path)
-                new_detection.preprocessed_file = nifti_path
+                # Keep original preprocessed_file relative path instead of replacing with absolute on-disk path
+                new_detection.preprocessed_file = source.preprocessed_file
             else:
                 # Fallback: run the pipeline if no usable NIfTI on disk
                 image_path = source.uploaded_file.path
