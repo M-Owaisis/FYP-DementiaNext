@@ -588,10 +588,14 @@ class DetectionViewSet(viewsets.ModelViewSet):
             import urllib.parse
             # Try to keep the extension
             parsed_url = urllib.parse.urlparse(file_path)
+            # Remove any query params so we pick up .zip properly
             file_name = os.path.basename(parsed_url.path)
             if not file_name:
                 file_name = 'temp.nii.gz'
-                
+            elif not (file_name.endswith('.nii') or file_name.endswith('.nii.gz') or file_name.endswith('.dcm') or file_name.endswith('.zip')):
+                # ensure fallback generic nifti if AWS signed urls strip extensions some how or use bad names
+                file_name = 'temp.nii.gz'
+
             temp_dir = tempfile.mkdtemp()
             temp_file_path = os.path.join(temp_dir, file_name)
             with open(temp_file_path, 'wb') as f:
@@ -602,7 +606,7 @@ class DetectionViewSet(viewsets.ModelViewSet):
         try:
             from pipeline.preprocess import preprocess_mri
             work_dir = os.path.join(
-                os.path.dirname(file_path) if not is_url else temp_dir, "pipeline_work"
+                os.path.dirname(file_path), "pipeline_work"
             )
             preprocessed = preprocess_mri(file_path, output_dir=work_dir)
             logger.info("Pipeline preprocessing complete: %s", preprocessed)
@@ -615,7 +619,9 @@ class DetectionViewSet(viewsets.ModelViewSet):
     def _is_mri_file(path: str) -> bool:
         if not path:
             return False
-        lp = path.lower()
+        import urllib.parse
+        parsed = urllib.parse.urlparse(path)
+        lp = parsed.path.lower()
         return (lp.endswith('.nii') or lp.endswith('.nii.gz')
                 or lp.endswith('.dcm') or lp.endswith('.zip'))
 
@@ -623,7 +629,9 @@ class DetectionViewSet(viewsets.ModelViewSet):
     def _is_nifti_path(path: str) -> bool:
         if not path:
             return False
-        lp = path.lower()
+        import urllib.parse
+        parsed = urllib.parse.urlparse(path)
+        lp = parsed.path.lower()
         return lp.endswith('.nii') or lp.endswith('.nii.gz')
 
     def _find_pipeline_output_nifti(self, upload_abs_path: str) -> str | None:
