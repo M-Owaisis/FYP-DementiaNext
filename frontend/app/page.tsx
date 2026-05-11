@@ -171,18 +171,15 @@ export default function HomePage() {
             DementiaNext provides computational tools for analyzing brain MRI data, supporting clinical efforts in identifying indicators of cognitive decline and neurodegenerative conditions.
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-6 justify-center">
-            <Link href="/classification">
-              <Button className="text-xl px-12 py-8 bg-gradient-to-r from-blue-600 to-teal-600 hover:from-blue-700 hover:to-teal-700 shadow-2xl hover:shadow-3xl transition-all duration-300 transform hover:scale-105">
-                <Scan className="mr-3 w-6 h-6" />
-                Classification
-                <ChevronRight className="ml-2 w-6 h-6" />
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <Link href="/detection">
+              <Button size="lg" className="w-full sm:w-auto text-base px-8 bg-blue-700 hover:bg-blue-800 text-white rounded-lg shadow-sm">
+                Initiate Analysis
               </Button>
             </Link>
-            <Link href="/detection">
-              <Button variant="outline" className="text-xl px-12 py-8 border-4 border-blue-600 text-blue-600 hover:bg-blue-50 shadow-xl hover:shadow-2xl transition-all duration-300">
-                <Shield className="mr-3 w-6 h-6" />
-                Detection
+            <Link href="/explainable-ai">
+              <Button variant="outline" size="lg" className="w-full sm:w-auto text-base px-8 border-slate-300 text-slate-700 hover:bg-slate-100 rounded-lg">
+                View Documentation
               </Button>
             </Link>
           </div>
