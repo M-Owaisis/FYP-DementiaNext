@@ -3,6 +3,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.http import StreamingHttpResponse
 from django.utils import timezone
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
 import json
 import logging
 
@@ -415,23 +417,17 @@ class LifeStoryViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         
-        # Save audio file
-        audio_dir = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)), "media", "life_story_audio"
-        )
-        os.makedirs(audio_dir, exist_ok=True)
-        
+        # Save audio file to default storage (e.g. Backblaze B2)
         filename = f"{uuid.uuid4().hex}.webm"
-        filepath = os.path.join(audio_dir, filename)
+        storage_path = f"life_story_audio/{filename}"
         
-        with open(filepath, "wb") as f:
-            for chunk in audio_file.chunks():
-                f.write(chunk)
+        saved_path = default_storage.save(storage_path, ContentFile(audio_file.read()))
+        audio_url = default_storage.url(saved_path)
         
-        # Transcribe the audio
+        # Transcribe the audio (need to handle it as a file-like object)
         try:
-            with open(filepath, "rb") as f:
-                transcript = conversation_engine.transcribe_audio(f)
+            audio_file.seek(0)  # Reset pointer after read()
+            transcript = conversation_engine.transcribe_audio(audio_file)
         except Exception as e:
             logger.exception("Failed to transcribe life story audio")
             return Response(
@@ -446,7 +442,7 @@ class LifeStoryViewSet(viewsets.ModelViewSet):
             entry_type="voice",
             title=title,
             description="",  # Voice entries use transcript instead
-            audio_file=f"/media/life_story_audio/{filename}",
+            audio_file=audio_url,
             audio_transcript=transcript,
             trigger_questions=trigger_questions,
             emotional_valence=emotional_valence,
@@ -470,21 +466,34 @@ class LifeStoryViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         
-        # Get full path
-        audio_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
-            entry.audio_file.lstrip("/")
-        )
-        
-        if not os.path.exists(audio_path):
-            return Response(
-                {"error": "Audio file not found."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        
         try:
-            with open(audio_path, "rb") as f:
-                transcript = conversation_engine.transcribe_audio(f)
+            import tempfile
+            import requests
+            
+            # If it's a URL, download it first
+            if entry.audio_file.startswith('http'):
+                with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                    response = requests.get(entry.audio_file)
+                    tmp.write(response.content)
+                    tmp_path = tmp.name
+                
+                try:
+                    with open(tmp_path, "rb") as f:
+                        transcript = conversation_engine.transcribe_audio(f)
+                finally:
+                    if os.path.exists(tmp_path):
+                        os.remove(tmp_path)
+            else:
+                # Handle potential legacy local path
+                audio_path = os.path.join(
+                    os.path.dirname(os.path.dirname(__file__)),
+                    entry.audio_file.lstrip("/")
+                )
+                if not os.path.exists(audio_path):
+                    return Response({"error": "Audio file not found."}, status=status.HTTP_404_NOT_FOUND)
+                
+                with open(audio_path, "rb") as f:
+                    transcript = conversation_engine.transcribe_audio(f)
             
             entry.audio_transcript = transcript
             entry.save(update_fields=["audio_transcript", "updated_at"])

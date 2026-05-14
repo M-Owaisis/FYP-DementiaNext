@@ -3,6 +3,9 @@ import os
 import uuid
 import logging
 import threading
+import tempfile
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
 from typing import Optional, Callable
 
 logger = logging.getLogger(__name__)
@@ -19,29 +22,37 @@ def _ensure_edge_tts():
 
 
 def synthesize(text: str, voice: str = "en-US-AriaNeural") -> str | None:
-    """Convert text to speech using edge-tts. Returns the file path or None."""
+    """Convert text to speech using edge-tts. Returns the storage URL or None."""
     try:
         edge_tts = _ensure_edge_tts()
-
-        audio_dir = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)), "media", "companion_audio"
-        )
-        os.makedirs(audio_dir, exist_ok=True)
-
         filename = f"{uuid.uuid4().hex}.mp3"
-        filepath = os.path.join(audio_dir, filename)
+        storage_path = f"companion_audio/{filename}"
 
-        async def _generate():
+        async def _generate(tmp_path):
             communicate = edge_tts.Communicate(text, voice)
-            await communicate.save(filepath)
+            await communicate.save(tmp_path)
 
-        loop = asyncio.new_event_loop()
+        # Use a temporary file to hold the TTS output before uploading to storage
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
+            tmp_path = tmp.name
+        
         try:
-            loop.run_until_complete(_generate())
-        finally:
-            loop.close()
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(_generate(tmp_path))
+            finally:
+                loop.close()
 
-        return f"/media/companion_audio/{filename}"
+            # Upload to default storage (e.g. Backblaze)
+            with open(tmp_path, "rb") as f:
+                saved_path = default_storage.save(storage_path, ContentFile(f.read()))
+            
+            # Return the public/signed URL
+            return default_storage.url(saved_path)
+            
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
 
     except Exception:
         logger.exception("TTS synthesis failed")
