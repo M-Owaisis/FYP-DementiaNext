@@ -15,7 +15,7 @@ const getAudioUrl = (path: string | null | undefined) => {
   if (!path) return '';
   if (path.startsWith('http')) {
     // Proxy remote URLs through our backend to bypass CORS
-    return `${API_BASE}/companion/proxy-audio/?url=${encodeURIComponent(path)}`;
+    return `${API_BASE}/api/companion/proxy-audio/?url=${encodeURIComponent(path)}`;
   }
   return `${API_BASE}${path.startsWith('/') ? '' : '/'}${path}`;
 }
