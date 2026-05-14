@@ -541,9 +541,9 @@ export default function DoctorDashboardPage() {
     }
   }, [user])
 
-  // Filter detections that the doctor has accepted (review_status === 'sent')
-  const acceptedDetections = detectionResults.filter(d => d.review_status === 'sent')
-  
+  // Filter detections that are completed
+  const acceptedDetections = detectionResults.filter(d => d.status === 'completed')
+
   const getUniquePatientsCount = (classes: string[]) => {
     return new Set(acceptedDetections.filter(d => classes.includes(d.predicted_class)).map(d => d.patient)).size
   }
