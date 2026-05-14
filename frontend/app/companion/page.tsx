@@ -830,7 +830,7 @@ function LifeStoryModal({ onClose, patientId }: { onClose: () => void; patientId
                     )}
                   </div>
                   {entry.audio_file && (
-                    <audio src={`${API_BASE}${entry.audio_file}`} controls className="w-24 h-8 mx-2" />
+                    <audio src={getAudioUrl(entry.audio_file)} controls className="w-24 h-8 mx-2" />
                   )}
                   <button
                     onClick={() => deleteEntry(entry.id)}

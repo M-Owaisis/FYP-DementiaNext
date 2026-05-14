@@ -36,3 +36,4 @@ django-storages[s3]>=1.14.0
 dj-database-url>=2.1.0
 huggingface_hub>=0.20.0
 modal>=0.65.0
+whitenoise>=6.6.0
