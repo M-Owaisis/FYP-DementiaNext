@@ -602,3 +602,40 @@ class CompanionConfigViewSet(viewsets.ViewSet):
 
         serializer.save()
         return Response(serializer.data)
+
+
+from rest_framework.decorators import api_view, permission_classes
+
+
+@api_view(["GET"])
+@permission_classes([permissions.AllowAny])
+def proxy_audio(request):
+    """
+    Proxy remote audio files to bypass CORS restrictions.
+    Usage: /api/companion/proxy-audio/?url=https://s3.example.com/audio.mp3
+    """
+    import requests
+    from django.http import HttpResponse, HttpResponseBadRequest
+    
+    url = request.GET.get("url")
+    if not url:
+        return HttpResponseBadRequest("Missing 'url' parameter")
+    
+    try:
+        # Fetch the audio file from the remote storage (e.g. Backblaze)
+        response = requests.get(url, stream=True, timeout=10)
+        response.raise_for_status()
+        
+        # Stream the response back to the client
+        proxy_response = HttpResponse(
+            response.iter_content(chunk_size=8192),
+            content_type=response.headers.get("Content-Type", "audio/mpeg")
+        )
+        
+        # Set some cache headers for performance
+        proxy_response["Cache-Control"] = "public, max-age=86400"
+        return proxy_response
+        
+    except Exception as e:
+        logger.error(f"Audio proxy failed for {url}: {str(e)}")
+        return HttpResponse(status=502)

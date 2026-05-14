@@ -10,5 +10,6 @@ router.register(r"sessions", views.SessionViewSet, basename="sessions")
 router.register(r"config", views.CompanionConfigViewSet, basename="config")
 
 urlpatterns = [
+    path("proxy-audio/", views.proxy_audio, name="proxy-audio"),
     path("", include(router.urls)),
 ]

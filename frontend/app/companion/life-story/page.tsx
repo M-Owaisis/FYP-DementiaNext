@@ -13,7 +13,11 @@ const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000
 
 const getAudioUrl = (path: string | null | undefined) => {
   if (!path) return '';
-  return path.startsWith('http') ? path : `${API_BASE}${path.startsWith('/') ? '' : '/'}${path}`;
+  if (path.startsWith('http')) {
+    // Proxy remote URLs through our backend to bypass CORS
+    return `${API_BASE}/companion/proxy-audio/?url=${encodeURIComponent(path)}`;
+  }
+  return `${API_BASE}${path.startsWith('/') ? '' : '/'}${path}`;
 }
 
 interface Entry {
