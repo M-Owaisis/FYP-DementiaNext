@@ -543,10 +543,10 @@ export default function DoctorDashboardPage() {
   const acceptedDetections = detectionResults.filter(d => d.status === 'completed')
 
   const getUniquePatientsCount = (classes: string[]) => {
-    return new Set(acceptedDetections.filter(d => classes.includes(d.predicted_class)).map(d => d.patient)).size
+    return new Set(acceptedDetections.filter(d => classes.includes(d.predicted_class)).map(d => String(d.patient))).size
   }
 
-  const uniquePatients = new Set(acceptedDetections.map(d => d.patient)).size
+  const uniquePatients = new Set(acceptedDetections.map(d => String(d.patient))).size
   const uniqueCN = getUniquePatientsCount(['cn'])
   const uniqueDementia = getUniquePatientsCount(['dementia'])
   
@@ -586,7 +586,7 @@ export default function DoctorDashboardPage() {
   // Unique patients list computation
   const patientsWithScans = new Map(
     acceptedDetections.reduce((map, detection) => {
-      const pId = detection.patient;
+      const pId = detection.patient ? String(detection.patient) : null;
       if (!pId) return map;
       if (!map.has(pId) || new Date(detection.created_at) > new Date(map.get(pId).created_at)) {
         map.set(pId, {
@@ -600,8 +600,8 @@ export default function DoctorDashboardPage() {
 
   // Merge the full patient list with those that have scans
   const uniquePatientsData = allPatients.map(patient => {
-    if (patientsWithScans.has(patient.id)) {
-      return patientsWithScans.get(patient.id);
+    if (patientsWithScans.has(String(patient.id))) {
+      return patientsWithScans.get(String(patient.id));
     }
     // Base fallback for users without scans
     return {
