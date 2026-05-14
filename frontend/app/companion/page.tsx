@@ -31,6 +31,11 @@ interface Session {
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '')
 
+const getAudioUrl = (path: string | null | undefined) => {
+  if (!path) return '';
+  return path.startsWith('http') ? path : `${API_BASE}${path.startsWith('/') ? '' : '/'}${path}`;
+}
+
 export default function CompanionPage() {
   const { user, isLoading: authLoading } = useAuth()
   const router = useRouter()
@@ -233,7 +238,7 @@ export default function CompanionPage() {
         pollForAudio(ttsTaskId).then(audioUrl => {
           if (audioUrl) {
             setMessages(prev => prev.map(msg => msg.id === assistantMsgId ? { ...msg, audio_url: audioUrl } : msg))
-            playAudio(`${API_BASE}${audioUrl}`)
+            playAudio(getAudioUrl(audioUrl))
           }
         })
       }
@@ -500,7 +505,7 @@ export default function CompanionPage() {
                         <p className="whitespace-pre-wrap leading-relaxed">{msg.content_text}</p>
                         {msg.audio_url && (
                           <button
-                            onClick={() => isPlayingAudio ? stopAudio() : playAudio(`${API_BASE}${msg.audio_url}`)}
+                            onClick={() => isPlayingAudio ? stopAudio() : playAudio(getAudioUrl(msg.audio_url))}
                             className={`mt-3 flex items-center gap-2 text-sm font-medium ${msg.role === 'user' ? 'text-white/90 hover:text-white' : 'text-blue-500 hover:text-blue-600'}`}
                           >
                             {isPlayingAudio ? <><VolumeX className="w-4 h-4" /> Stop</> : <><Volume2 className="w-4 h-4" /> Listen</>}

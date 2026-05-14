@@ -11,6 +11,11 @@ import { useRouter } from 'next/navigation'
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '')
 
+const getAudioUrl = (path: string | null | undefined) => {
+  if (!path) return '';
+  return path.startsWith('http') ? path : `${API_BASE}${path.startsWith('/') ? '' : '/'}${path}`;
+}
+
 interface Entry {
   id: number
   title: string
@@ -252,7 +257,7 @@ export default function LifeStoryPage() {
                     )}
                   </div>
                   {entry.audio_file && (
-                    <audio src={`${API_BASE}${entry.audio_file}`} controls className="w-32 h-8" />
+                    <audio src={getAudioUrl(entry.audio_file)} controls className="w-32 h-8" />
                   )}
                   <button
                     onClick={() => deleteEntry(entry.id)}
